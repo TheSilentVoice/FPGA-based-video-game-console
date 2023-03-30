@@ -1,6 +1,3 @@
-`include "seven_segment.v"
-`include "digit_bitmap.v"
-
 module test_vgaDriver_top(
     input VGA_IN_CLK,
     
@@ -22,8 +19,8 @@ parameter BLACK   = 16'h0;
 parameter WHITE   = 16'hFFFF;
 
 
-wire [9:0] vpos;
-wire [8:0] hpos;
+wire [15:0] vpos;
+wire [15:0] hpos;
 reg [15:0] VGA_RGB_IN;
 
 reg reset;
@@ -62,18 +59,18 @@ end
 //--------------------------------------------------------------------
 
 
-reg signed [8:0] ball_hpos;
-reg signed [8:0] ball_vpos;
+reg [15:0] ball_hpos;
+reg [15:0] ball_vpos;
 
-reg signed [8:0] ball_horiz_move = -2;
-reg signed [8:0] ball_vert_move = 2;
+reg [15:0] ball_horiz_move = -2;
+reg [15:0] ball_vert_move = 2;
 
 localparam hinit = 128;
 localparam vinit = 128;
 localparam size = 4;
 
-wire [8:0] ball_hdiff = hpos - ball_hpos;
-wire [8:0] ball_vdiff = vpos - ball_vpos;
+//wire [8:0] ball_hdiff = hpos - ball_hpos;
+//wire [8:0] ball_vdiff = vpos - ball_vpos;
 
 wire ball_hgfx = ball_hpos == hpos;
 wire ball_vgfx = ball_vpos == vpos;
@@ -83,7 +80,7 @@ wire ball_gfx = ball_hgfx && ball_vgfx;
 
 
 
-always @(posedge VGA_VSYNC or posedge reset) begin
+always @(posedge VGA_VSYNC) begin
     if (reset) begin
         ball_hpos <= hinit;
         ball_vpos <= vinit;
@@ -97,8 +94,8 @@ end
 
 
 
-wire ball_horiz_collide = ball_hpos >= 640;
-wire ball_vert_collide  = ball_vpos >= 480;
+wire ball_horiz_collide = ball_hpos >= 480;
+wire ball_vert_collide  = ball_vpos >= 640;
 
 always @(posedge ball_vert_collide) begin
     ball_vert_move <= -ball_vert_move;
