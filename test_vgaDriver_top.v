@@ -69,15 +69,12 @@ localparam hinit = 128;
 localparam vinit = 128;
 localparam size = 4;
 
-//wire [8:0] ball_hdiff = hpos - ball_hpos;
-//wire [8:0] ball_vdiff = vpos - ball_vpos;
+wire [15:0] ball_hdiff = hpos - ball_hpos;
+wire [15:0] ball_vdiff = vpos - ball_vpos;
 
-wire ball_hgfx = ball_hpos == hpos;
-wire ball_vgfx = ball_vpos == vpos;
+wire ball_hgfx = ball_hdiff < size;
+wire ball_vgfx = ball_vdiff < size;
 wire ball_gfx = ball_hgfx && ball_vgfx;
-
-
-
 
 
 always @(posedge VGA_VSYNC) begin
@@ -90,8 +87,6 @@ always @(posedge VGA_VSYNC) begin
         ball_vpos <= ball_vpos + ball_vert_move;
     end
 end
-
-
 
 
 wire ball_horiz_collide = ball_hpos >= 480;
