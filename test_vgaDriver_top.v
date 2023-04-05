@@ -1,5 +1,5 @@
 module test_vgaDriver_top(
-    input VGA_IN_CLK,
+    input SYS_CLK,
     
     output  [3:0] VGA_RED_O,
     output  [3:0] VGA_GREEN_O,
@@ -17,16 +17,31 @@ parameter MAGENTA = 16'hF81F;
 parameter CYAN    = 16'h7FF;
 parameter BLACK   = 16'h0;
 parameter WHITE   = 16'hFFFF;
+parameter ball_horiz_move = -2;
+parameter ball_vert_move = 2;
 
+localparam hinit = 128;
+localparam vinit = 128;
+localparam size = 4;
 
 wire [15:0] vpos;
 wire [15:0] hpos;
 reg [15:0] VGA_RGB_IN;
 
+reg [15:0] ball_hpos;
+reg [15:0] ball_vpos;
+
+wire [15:0] ball_hdiff = (hpos - ball_hpos);
+wire [15:0] ball_vdiff = (vpos - ball_vpos);
+
+wire ball_gfx = (ball_hdiff < size) && (ball_vdiff < size);
+
+wire ball_horiz_collide = ball_hpos >= 480;
+wire ball_vert_collide  = ball_vpos >= 640;
+
 reg reset;
 reg reset_lock;
-
-always@(posedge VGA_IN_CLK) begin
+always@(posedge SYS_CLK) begin
     if(reset_lock) begin
         reset <= 0;
     end 
@@ -36,91 +51,49 @@ always@(posedge VGA_IN_CLK) begin
     end
 end
 
-//PATTERN GENERATOR
-//--------------------------------------------------------------------
-//always@(hpos || vpos) begin
-//    if((hpos&7)==0|| (vpos&7)==0) begin
-//        VGA_RGB_IN = RED;
-//    end 
-//    else begin
-//        if(hpos[4]) begin
-//            VGA_RGB_IN = GREEN;
-//        end 
-//        else begin
-//            if(vpos[4]) begin
-//                VGA_RGB_IN = BLUE;
-//            end 
-//            else begin
-//                VGA_RGB_IN = BLACK;
-//            end
-//        end
-//    end
-//end
-//--------------------------------------------------------------------
-
-
-reg [15:0] ball_hpos;
-reg [15:0] ball_vpos;
-
-reg [15:0] ball_horiz_move = -2;
-reg [15:0] ball_vert_move = 2;
-
-localparam hinit = 128;
-localparam vinit = 128;
-localparam size = 4;
-
-wire [15:0] ball_hdiff = hpos - ball_hpos;
-wire [15:0] ball_vdiff = vpos - ball_vpos;
-
-wire ball_hgfx = ball_hdiff < size;
-wire ball_vgfx = ball_vdiff < size;
-wire ball_gfx = ball_hgfx && ball_vgfx;
-
-
-always @(posedge VGA_VSYNC) begin
-    if (reset) begin
+always@(posedge SYS_CLK) begin
+    if(reset) begin
         ball_hpos <= hinit;
-        ball_vpos <= vinit;
-    end 
-    else begin
-        ball_hpos <= ball_hpos + ball_horiz_move;
-        ball_vpos <= ball_vpos + ball_vert_move;
-    end
-end
-
-
-wire ball_horiz_collide = ball_hpos >= 480;
-wire ball_vert_collide  = ball_vpos >= 640;
-
-always @(posedge ball_vert_collide) begin
-    ball_vert_move <= -ball_vert_move;
-end
-
-always @(posedge ball_horiz_collide) begin
-    ball_horiz_move <= -ball_horiz_move;
-end
-
-
-always@(*) begin
-    if (ball_hgfx | ball_gfx) begin
-        VGA_RGB_IN <= BLUE;
     end
     else begin
-        if (ball_vgfx | ball_gfx) begin
-            VGA_RGB_IN <= RED;
+        if(VGA_VSYNC) begin
+            ball_hpos <= ball_hpos + ball_horiz_move;
         end
         else begin
-            VGA_RGB_IN <= BLACK;
+            if(ball_horiz_collide) begin
+                ball_hpos <= -ball_hpos;
+            end
         end
     end
+end
 
-    if(ball_gfx)
+always@(posedge SYS_CLK) begin
+    if(reset) begin
+        ball_vpos <= vinit;
+    end
+    else begin
+        if(VGA_VSYNC) begin
+            ball_vpos <= ball_vpos + ball_vert_move;
+        end
+        else begin
+            if(ball_vert_collide) begin
+                ball_vpos <= -ball_vpos;
+            end
+        end
+    end
+end
+
+always@(posedge SYS_CLK) begin
+    if(ball_gfx) begin
         VGA_RGB_IN <= WHITE;
+    end 
+    else begin
+        VGA_RGB_IN <= BLACK;
+    end
 end
     
-
 vgaDriver driver(
-    .clk_i(VGA_IN_CLK),
+    .clk_i(SYS_CLK),
     .reset_i(reset),
     .rgb_i(VGA_RGB_IN),
     .red_o(VGA_RED_O),
@@ -131,6 +104,5 @@ vgaDriver driver(
     .row_o(hpos),
     .column_o(vpos)
 );
-
 
 endmodule
