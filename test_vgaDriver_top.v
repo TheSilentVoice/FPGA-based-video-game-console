@@ -30,14 +30,13 @@ reg [15:0] VGA_RGB_IN;
 
 reg [15:0] ball_hpos;
 reg [15:0] ball_vpos;
+//ire [15:0] ball_hdiff = (hpos - ball_hpos);
+//wire [15:0] ball_vdiff = (vpos - ball_vpos);
 
-wire [15:0] ball_hdiff = (hpos - ball_hpos);
-wire [15:0] ball_vdiff = (vpos - ball_vpos);
+wire ball_gfx = (ball_hpos == hpos) && (ball_vpos == vpos);
 
-wire ball_gfx = (ball_hdiff < size) && (ball_vdiff < size);
-
-wire ball_horiz_collide = ball_hpos >= 480;
-wire ball_vert_collide  = ball_vpos >= 640;
+wire ball_horiz_collide = ball_hpos >= 640;
+wire ball_vert_collide  = ball_vpos >= 480;
 
 reg reset;
 reg reset_lock;
@@ -101,8 +100,8 @@ vgaDriver driver(
     .blue_o(VGA_BLUE_O),
     .hSync_o(VGA_HSYNC),
     .vSync_o(VGA_VSYNC),
-    .row_o(hpos),
-    .column_o(vpos)
+    .row_o(vpos),
+    .column_o(hpos)
 );
 
 endmodule
