@@ -17,8 +17,9 @@ parameter MAGENTA = 16'hF81F;
 parameter CYAN    = 16'h7FF;
 parameter BLACK   = 16'h0;
 parameter WHITE   = 16'hFFFF;
-parameter ball_horiz_move = -2;
-parameter ball_vert_move = 2;
+
+reg [15:0] ball_horiz_move = -2;
+reg [15:0] ball_vert_move = 2;
 
 localparam hinit = 128;
 localparam vinit = 128;
@@ -60,7 +61,7 @@ always@(posedge SYS_CLK) begin
         end
         else begin
             if(ball_horiz_collide) begin
-                ball_hpos <= -ball_hpos;
+                ball_horiz_move <= -ball_horiz_move;
             end
         end
     end
@@ -76,7 +77,7 @@ always@(posedge SYS_CLK) begin
         end
         else begin
             if(ball_vert_collide) begin
-                ball_vpos <= -ball_vpos;
+                ball_vert_move <= -ball_vert_move;
             end
         end
     end
