@@ -1,6 +1,7 @@
 module test_vgaDriver_top(
     input SYS_CLK,
-    
+    input button_press,
+
     output  [3:0] VGA_RED_O,
     output  [3:0] VGA_GREEN_O,
     output  [3:0] VGA_BLUE_O,
@@ -17,6 +18,9 @@ parameter MAGENTA = 16'hF81F;
 parameter CYAN    = 16'h7FF;
 parameter BLACK   = 16'h0;
 parameter WHITE   = 16'hFFFF;
+
+
+wire reset;
 
 reg [15:0] ball_horiz_move = -2;
 reg [15:0] ball_vert_move = 2;
@@ -39,17 +43,17 @@ wire ball_gfx = (ball_hpos == hpos) && (ball_vpos == vpos);
 wire ball_horiz_collide = ball_hpos >= 640;
 wire ball_vert_collide  = ball_vpos >= 480;
 
-reg reset;
-reg reset_lock;
-always@(posedge SYS_CLK) begin
-    if(reset_lock) begin
-        reset <= 0;
-    end 
-    else begin
-        reset <= 1;
-        reset_lock <= 1;
-    end
-end
+
+//reg reset_lock;
+//lways@(posedge SYS_CLK) begin
+//   if(reset_lock) begin
+//        reset <= 0;
+//    end 
+//    else begin
+//        reset <= 1;
+//        reset_lock <= 1;
+//    end
+//end
 
 always@(posedge SYS_CLK) begin
     if(reset) begin
@@ -104,5 +108,13 @@ vgaDriver driver(
     .row_o(vpos),
     .column_o(hpos)
 );
+
+debounce debounce_logic(
+    .inclk(SYS_CLK),
+    .b_in(button_press),
+    .b_out(reset)
+);
+
+
 
 endmodule
