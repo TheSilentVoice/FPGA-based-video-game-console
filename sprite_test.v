@@ -26,7 +26,7 @@ parameter initial_y = 256;
 
 
 wire mv_left, mv_right;
-parameter mvspeed = 1;
+parameter mvspeed = 3;
 
 wire [8:0] ypos;
 wire [9:0] xpos;
@@ -40,31 +40,90 @@ reg [8:0] draw_pos_y;
 reg [9:0] draw_pos_x;
 
 
+wire left_barrier_touch = draw_pos_x <= 100;
+wire right_barrier_touch = draw_pos_x >= 400;
 
 wire vstart = draw_pos_y == ypos;
 wire hstart = draw_pos_x == xpos;
 wire gfx;
 wire inloop;
 
+reg [3:0] state;
+parameter IDL  = 0;
+parameter LOAD = 1;
+parameter WAIT_MV = 2;
+parameter ADD  = 3;
+parameter SUB  = 4;
 
-
-always @(SYS_CLK) begin
-    if(reset) begin
-        draw_pos_x <= initial_x;
-        draw_pos_y <= initial_y;
-    end else begin 
-            if(mv_left && draw_pos_x >= 100) begin
-                    draw_pos_x <= draw_pos_x - mvspeed;
-            end 
-            else begin
-            if(mv_right && draw_pos_x <= 400) begin
-                    draw_pos_x <= draw_pos_x + mvspeed;
-            end
+always @(posedge SYS_CLK) begin
+    case (state)
+        IDL: begin
+            if(reset) begin
+                state <= LOAD;
             end
         end
+
+        LOAD: begin
+            draw_pos_x <= initial_x;
+            draw_pos_y <= initial_y;
+            state <= WAIT_MV;
+        end
+
+        WAIT_MV: begin
+            if(reset) begin
+                state <= LOAD;
+            end 
+            else begin
+                if(!inloop) begin
+                    if(mv_left) begin
+                        state <= SUB;
+                    end
+                    else begin
+                        if(mv_right) begin
+                            state <= ADD;
+                        end
+                    end
+                end
+            end
+        end
+
+        ADD: begin
+            if(reset) begin
+                state <= LOAD;
+            end
+            else begin
+                if(right_barrier_touch) begin
+                    draw_pos_x <= 100;
+                end
+                else begin
+                    draw_pos_x <= draw_pos_x + 1;
+                end
+            end
+
+            state <= WAIT_MV;
+        end
+
+        SUB: begin
+            if(reset) begin
+                state <= LOAD;
+            end
+            else begin
+                if(left_barrier_touch) begin
+                    draw_pos_x <= 400;
+                end 
+                else begin
+                    draw_pos_x <= draw_pos_x - 1;    
+                end
+            end
+
+            state<= WAIT_MV;
+        end
+
+        default: begin
+            state <= IDL;
+        end
+    endcase
 end
-
-
 
 always @(SYS_CLK) begin
     if(gfx) begin
@@ -92,7 +151,7 @@ vgaDriver driver(
     .column_o(xpos)
 );
 
-DE10_lite_button_controller button_controller(
+DE10_LITE_button_controller button_controller(
     .clk(SYS_CLK),
     .b1_press(b1_press),
     .b2_press(b2_press),
