@@ -22,26 +22,26 @@ parameter BLACK   = 16'h0;
 parameter WHITE   = 16'hFFFF;
 
 parameter initial_x = 256;
-parameter initial_y = 256;
+parameter initial_y = 400;
 
 
 wire mv_left, mv_right;
-parameter mvspeed = 3;
+parameter mvspeed = 15;
 
 wire [8:0] ypos;
 wire [9:0] xpos;
 reg [15:0] VGA_RGB_IN;
 
 
-wire [3:0] car_sprite_addr;
-wire [7:0] car_sprite_bits;
+wire [3:0] ship_sprite_addr;
+wire [7:0] ship_sprite_bits;
 
 reg [8:0] draw_pos_y;
 reg [9:0] draw_pos_x;
 
 
-wire left_barrier_touch = draw_pos_x <= 100;
-wire right_barrier_touch = draw_pos_x >= 400;
+wire left_barrier_touch = draw_pos_x <= 160;
+wire right_barrier_touch = draw_pos_x >= 320;
 
 wire vstart = draw_pos_y == ypos;
 wire hstart = draw_pos_x == xpos;
@@ -93,10 +93,10 @@ always @(posedge SYS_CLK) begin
             end
             else begin
                 if(right_barrier_touch) begin
-                    draw_pos_x <= 100;
+                    draw_pos_x <= 160;
                 end
                 else begin
-                    draw_pos_x <= draw_pos_x + 1;
+                    draw_pos_x <= draw_pos_x + mvspeed;
                 end
             end
 
@@ -109,10 +109,10 @@ always @(posedge SYS_CLK) begin
             end
             else begin
                 if(left_barrier_touch) begin
-                    draw_pos_x <= 400;
+                    draw_pos_x <= 320;
                 end 
                 else begin
-                    draw_pos_x <= draw_pos_x - 1;    
+                    draw_pos_x <= draw_pos_x - mvspeed;    
                 end
             end
 
@@ -127,7 +127,7 @@ end
 
 always @(SYS_CLK) begin
     if(gfx) begin
-        VGA_RGB_IN <= WHITE;
+        VGA_RGB_IN <= CYAN;
     end
     else begin
             VGA_RGB_IN <= BLACK;    
@@ -160,9 +160,9 @@ DE10_LITE_button_controller button_controller(
 );
 
 
-car_bitmap car_sprite(
-    .pos(car_sprite_addr),
-    .pix(car_sprite_bits),
+ship_bitmap ship_sprite(
+    .pos(ship_sprite_addr),
+    .pix(ship_sprite_bits),
 );
 
 sprite_renderer renderer(
@@ -170,8 +170,8 @@ sprite_renderer renderer(
     .vstart(vstart),
     .load(VGA_HSYNC),
     .hstart(hstart),
-    .rom_addr(car_sprite_addr),
-    .rom_bits(car_sprite_bits),
+    .rom_addr(ship_sprite_addr),
+    .rom_bits(ship_sprite_bits),
     .gfx(gfx),
     .inloop(inloop)
 );
