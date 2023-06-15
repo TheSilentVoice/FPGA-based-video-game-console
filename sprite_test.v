@@ -21,7 +21,7 @@ parameter CYAN    = 16'h7FF;
 parameter BLACK   = 16'h0;
 parameter WHITE   = 16'hFFFF;
 
-parameter initial_x = 256;
+parameter initial_x = 240;
 parameter initial_y = 400;
 
 
@@ -33,20 +33,50 @@ wire [9:0] xpos;
 reg [15:0] VGA_RGB_IN;
 
 
-wire [3:0] ship_sprite_addr;
-wire [7:0] ship_sprite_bits;
+wire [3:0] player_ship_sprite_addr;
+wire [7:0] player_ship_sprite_bits;
+
+wire [3:0] enemyA_ship_sprite_addr;
+wire [7:0] enemyA_ship_sprite_bits;
+wire [3:0] enemyB_ship_sprite_addr;
+wire [7:0] enemyB_ship_sprite_bits;
+wire [3:0] enemyC_ship_sprite_addr;
+wire [7:0] enemyC_ship_sprite_bits;
 
 reg [8:0] draw_pos_y;
 reg [9:0] draw_pos_x;
 
+wire [8:0] enemyA_draw_pos_y;
+wire [9:0] enemyA_draw_pos_x;
+wire [8:0] enemyB_draw_pos_y;
+wire [9:0] enemyB_draw_pos_x;
+wire [8:0] enemyC_draw_pos_y;
+wire [9:0] enemyC_draw_pos_x;
 
 wire left_barrier_touch = draw_pos_x <= 160;
 wire right_barrier_touch = draw_pos_x >= 320;
 
 wire vstart = draw_pos_y == ypos;
 wire hstart = draw_pos_x == xpos;
-wire gfx;
-wire inloop;
+wire player_gfx;
+wire enemy_A_gfx;
+wire enemy_B_gfx;
+wire enemy_C_gfx;
+
+wire player_inloop;
+wire enemy_A_inloop;
+wire enemy_B_inloop;
+wire enemy_C_inloop;
+
+
+
+wire vstart_A = enemyA_draw_pos_y == ypos;
+wire hstart_A = enemyA_draw_pos_x == xpos;
+wire vstart_B = enemyB_draw_pos_y == ypos;
+wire hstart_B = enemyB_draw_pos_x == xpos;
+wire vstart_C = enemyC_draw_pos_y == ypos;
+wire hstart_C = enemyC_draw_pos_x == xpos;
+
 
 reg [3:0] state;
 parameter IDL  = 0;
@@ -126,17 +156,38 @@ always @(posedge SYS_CLK) begin
 end
 
 always @(SYS_CLK) begin
-    if(gfx) begin
+    if(player_gfx) begin
         VGA_RGB_IN <= CYAN;
     end
     else begin
             VGA_RGB_IN <= BLACK;    
-        end
+    end
+
+    if(enemy_A_gfx) begin
+        VGA_RGB_IN <= GREEN;
+    end
+    else begin
+            VGA_RGB_IN <= BLACK;    
+    end
+
+    if(enemy_B_gfx) begin
+        VGA_RGB_IN <= GREEN;
+    end
+    else begin
+            VGA_RGB_IN <= BLACK;    
+    end
+
+    if(enemy_C_gfx) begin
+        VGA_RGB_IN <= GREEN;
+    end
+    else begin
+            VGA_RGB_IN <= BLACK;    
+    end
+
+   
 end
 
-///////////////////////////////////////
-//IMPLEMENT BUTTONS AND SWITCHES///////
-///////////////////////////////////////
+
 
 vgaDriver driver(
     .clk_i(SYS_CLK),
@@ -165,15 +216,62 @@ ship_bitmap ship_sprite(
     .pix(ship_sprite_bits),
 );
 
-sprite_renderer renderer(
+sprite_renderer player(
     .clk(SYS_CLK),
     .vstart(vstart),
     .load(VGA_HSYNC),
     .hstart(hstart),
-    .rom_addr(ship_sprite_addr),
-    .rom_bits(ship_sprite_bits),
+    .rom_addr(player_ship_sprite_addr),
+    .rom_bits(player_ship_sprite_bits),
     .gfx(gfx),
     .inloop(inloop)
 );
 
+sprite_renderer enemy_A(
+    .clk(SYS_CLK),
+    .vstart(vstart_A),
+    .load(VGA_HSYNC),
+    .hstart(hstart_A),
+    .rom_addr(enemyA_ship_sprite_addr),
+    .rom_bits(enemyA_ship_sprite_bits),
+    .gfx(enemy_A_gfx),
+    .inloop(enemy_A_inloop)
+);
+
+sprite_renderer enemy_B(
+    .clk(SYS_CLK),
+    .vstart(vstart_B),
+    .load(VGA_HSYNC),
+    .hstart(hstart_B),
+    .rom_addr(enemyB_ship_sprite_addr),
+    .rom_bits(enemyB_ship_sprite_bits),
+    .gfx(enemy_B_gfx),
+    .inloop(enemy_A_inloop)
+);
+
+sprite_renderer enemy_C(
+    .clk(SYS_CLK),
+    .vstart(vstart_C),
+    .load(VGA_HSYNC),
+    .hstart(hstart_C),
+    .rom_addr(enemyC_ship_sprite_addr),
+    .rom_bits(enemyC_ship_sprite_bits),
+    .gfx(enemy_C_gfx),
+    .inloop(enemy_C_inloop)
+);
+
+enemy_ship_controller enemy_ships(
+    .clk(clk),
+    .reset(reset),
+    .b1_press(b1_press),
+    .b2_press(b2_press),
+    .player_x(draw_pos_x),
+    .enemy_A_x(enemyA_draw_pos_x),
+    .enemy_A_y(enemyA_draw_pos_y),
+    .enemy_B_x(enemyB_draw_pos_x),
+    .enemy_B_y(enemyB_draw_pos_y),
+    .enemy_C_x(enemyC_draw_pos_x),
+    .enemy_C_y(enemyC_draw_pos_y),
+
+);
 endmodule
