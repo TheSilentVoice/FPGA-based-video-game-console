@@ -23,6 +23,8 @@ parameter WHITE   = 16'hFFFF;
 
 parameter initial_x = 240;
 parameter initial_y = 400;
+parameter initial_x_e = 240;
+parameter initial_y_e = 50;
 
 
 wire mv_left, mv_right;
@@ -32,59 +34,44 @@ wire [8:0] ypos;
 wire [9:0] xpos;
 reg [15:0] VGA_RGB_IN;
 
+wire player_load = (ypos >= 400);
+wire enemy_load = (ypos >= 50) && (ypos < 400);
+
+
+
 
 wire [3:0] player_ship_sprite_addr;
-wire [7:0] player_ship_sprite_bits;
+wire [3:0] enemy_ship_sprite_addr;
+wire [3:0] ship_sprite_addr = player_load ? player_ship_sprite_addr : enemy_ship_sprite_addr;
+wire [7:0] ship_sprite_bits;
 
-wire [3:0] enemyA_ship_sprite_addr;
-wire [7:0] enemyA_ship_sprite_bits;
-wire [3:0] enemyB_ship_sprite_addr;
-wire [7:0] enemyB_ship_sprite_bits;
-wire [3:0] enemyC_ship_sprite_addr;
-wire [7:0] enemyC_ship_sprite_bits;
+reg [8:0] player_draw_pos_y;
+reg [9:0] player_draw_pos_x;
 
-reg [8:0] draw_pos_y;
-reg [9:0] draw_pos_x;
+reg [8:0] enemy_draw_pos_y;
+reg [9:0] enemy_draw_pos_x;
 
-wire [8:0] enemyA_draw_pos_y;
-wire [9:0] enemyA_draw_pos_x;
-wire [8:0] enemyB_draw_pos_y;
-wire [9:0] enemyB_draw_pos_x;
-wire [8:0] enemyC_draw_pos_y;
-wire [9:0] enemyC_draw_pos_x;
+wire left_barrier_touch = player_draw_pos_x <= 160;
+wire right_barrier_touch = player_draw_pos_x >= 360;
 
-wire left_barrier_touch = draw_pos_x <= 160;
-wire right_barrier_touch = draw_pos_x >= 320;
-
-wire vstart = draw_pos_y == ypos;
-wire hstart = draw_pos_x == xpos;
+wire player_vstart = player_draw_pos_y == ypos;
+wire player_hstart = player_draw_pos_x == xpos;
+wire enemy_vstart = enemy_draw_pos_y == ypos;
+wire enemy_hstart = enemy_draw_pos_x == xpos;
 wire player_gfx;
-wire enemy_A_gfx;
-wire enemy_B_gfx;
-wire enemy_C_gfx;
-
+wire enemy_gfx;
 wire player_inloop;
-wire enemy_A_inloop;
-wire enemy_B_inloop;
-wire enemy_C_inloop;
+wire enemy_inloop;
 
+wire tracker = player_draw_pos_x < 240;
 
-
-wire vstart_A = enemyA_draw_pos_y == ypos;
-wire hstart_A = enemyA_draw_pos_x == xpos;
-wire vstart_B = enemyB_draw_pos_y == ypos;
-wire hstart_B = enemyB_draw_pos_x == xpos;
-wire vstart_C = enemyC_draw_pos_y == ypos;
-wire hstart_C = enemyC_draw_pos_x == xpos;
-
-
+//player FSM
 reg [3:0] state;
 parameter IDL  = 0;
 parameter LOAD = 1;
 parameter WAIT_MV = 2;
 parameter ADD  = 3;
 parameter SUB  = 4;
-
 always @(posedge SYS_CLK) begin
     case (state)
         IDL: begin
@@ -94,8 +81,8 @@ always @(posedge SYS_CLK) begin
         end
 
         LOAD: begin
-            draw_pos_x <= initial_x;
-            draw_pos_y <= initial_y;
+            player_draw_pos_x <= initial_x;
+            player_draw_pos_y <= initial_y;
             state <= WAIT_MV;
         end
 
@@ -104,7 +91,7 @@ always @(posedge SYS_CLK) begin
                 state <= LOAD;
             end 
             else begin
-                if(!inloop) begin
+                if(!player_inloop) begin
                     if(mv_left) begin
                         state <= SUB;
                     end
@@ -123,10 +110,10 @@ always @(posedge SYS_CLK) begin
             end
             else begin
                 if(right_barrier_touch) begin
-                    draw_pos_x <= 160;
+                    player_draw_pos_x <= 100;
                 end
                 else begin
-                    draw_pos_x <= draw_pos_x + mvspeed;
+                    player_draw_pos_x <= player_draw_pos_x + mvspeed;
                 end
             end
 
@@ -139,10 +126,10 @@ always @(posedge SYS_CLK) begin
             end
             else begin
                 if(left_barrier_touch) begin
-                    draw_pos_x <= 320;
+                    player_draw_pos_x <= 400;
                 end 
                 else begin
-                    draw_pos_x <= draw_pos_x - mvspeed;    
+                    player_draw_pos_x <= player_draw_pos_x - mvspeed;    
                 end
             end
 
@@ -155,39 +142,104 @@ always @(posedge SYS_CLK) begin
     endcase
 end
 
+
+//enemy FSM
+reg [3:0] state_e ;
+reg [3:0] counter;
+
+reg on_screen;
+parameter IDL_e       = 0;
+parameter LOAD_e       = 1;
+parameter WAIT_SPAWN = 2;
+parameter SPAWN      = 3;
+parameter TRACK      = 4;
+parameter DESPAWN    = 5;
+always @(posedge SYS_CLK) begin
+    case (state_e)
+        IDL_e: begin
+            if(reset) begin
+                state_e <= LOAD_e;
+            end 
+        end
+
+        LOAD_e: begin
+            enemy_draw_pos_x <= initial_x_e;
+            enemy_draw_pos_y <= initial_y_e;
+            state_e <= WAIT_SPAWN;
+        end
+
+        WAIT_SPAWN: begin
+            if(mv_left | mv_right) begin
+                if(!on_screen) begin
+                    state_e <= SPAWN;
+                end
+            end
+        end
+        
+        SPAWN: begin 
+            if(reset) begin
+                state_e <= LOAD_e;
+            end
+            else begin
+                    on_screen <= 1;
+                    state_e <= TRACK;
+            end
+        end
+
+        TRACK: begin
+            if(reset) begin
+                state_e <= LOAD_e;
+            end
+            else begin
+                if(!enemy_inloop) begin
+                    if(mv_left | mv_right) begin
+                        enemy_draw_pos_y <= enemy_draw_pos_y + 10;
+                        if(tracker) begin
+                            enemy_draw_pos_x <= enemy_draw_pos_x - mvspeed;
+                        end
+                        else begin
+                            enemy_draw_pos_x <= enemy_draw_pos_x + mvspeed;
+                        end
+
+                        if(enemy_draw_pos_y >= 420) begin
+                            state_e <= DESPAWN;
+                        end
+                        else begin
+                            state_e <= TRACK;
+                        end
+                    end
+                end
+            end
+        end
+
+        DESPAWN: begin
+            if(reset) begin
+                state_e <= LOAD_e;
+            end 
+            else begin
+                on_screen <= 0;
+                state_e <= LOAD_e;
+            end
+        end
+
+        default: state_e <= IDL_e;
+    endcase
+end
+
+
 always @(SYS_CLK) begin
     if(player_gfx) begin
         VGA_RGB_IN <= CYAN;
     end
     else begin
-            VGA_RGB_IN <= BLACK;    
-    end
-
-    if(enemy_A_gfx) begin
-        VGA_RGB_IN <= GREEN;
-    end
-    else begin
-            VGA_RGB_IN <= BLACK;    
-    end
-
-    if(enemy_B_gfx) begin
-        VGA_RGB_IN <= GREEN;
-    end
-    else begin
-            VGA_RGB_IN <= BLACK;    
-    end
-
-    if(enemy_C_gfx) begin
-        VGA_RGB_IN <= GREEN;
-    end
-    else begin
-            VGA_RGB_IN <= BLACK;    
-    end
-
-   
+            if(enemy_gfx) begin
+                VGA_RGB_IN <= MAGENTA;
+            end
+            else begin
+                VGA_RGB_IN <= BLACK;
+            end
+        end
 end
-
-
 
 vgaDriver driver(
     .clk_i(SYS_CLK),
@@ -216,62 +268,27 @@ ship_bitmap ship_sprite(
     .pix(ship_sprite_bits),
 );
 
-sprite_renderer player(
+sprite_renderer player_renderer(
     .clk(SYS_CLK),
-    .vstart(vstart),
-    .load(VGA_HSYNC),
-    .hstart(hstart),
+    .vstart(player_vstart),
+    .load(player_load),
+    .hstart(player_hstart),
     .rom_addr(player_ship_sprite_addr),
-    .rom_bits(player_ship_sprite_bits),
-    .gfx(gfx),
-    .inloop(inloop)
+    .rom_bits(ship_sprite_bits),
+    .gfx(player_gfx),
+    .inloop(player_inloop)
 );
 
-sprite_renderer enemy_A(
+sprite_renderer enemy_renderer(
     .clk(SYS_CLK),
-    .vstart(vstart_A),
-    .load(VGA_HSYNC),
-    .hstart(hstart_A),
-    .rom_addr(enemyA_ship_sprite_addr),
-    .rom_bits(enemyA_ship_sprite_bits),
-    .gfx(enemy_A_gfx),
-    .inloop(enemy_A_inloop)
+    .vstart(enemy_vstart),
+    .load(on_screen),
+    .hstart(enemy_hstart),
+    .rom_addr(enemy_ship_sprite_addr),
+    .rom_bits(ship_sprite_bits),
+    .gfx(enemy_gfx),
+    .inloop(enemy_inloop)
 );
 
-sprite_renderer enemy_B(
-    .clk(SYS_CLK),
-    .vstart(vstart_B),
-    .load(VGA_HSYNC),
-    .hstart(hstart_B),
-    .rom_addr(enemyB_ship_sprite_addr),
-    .rom_bits(enemyB_ship_sprite_bits),
-    .gfx(enemy_B_gfx),
-    .inloop(enemy_A_inloop)
-);
 
-sprite_renderer enemy_C(
-    .clk(SYS_CLK),
-    .vstart(vstart_C),
-    .load(VGA_HSYNC),
-    .hstart(hstart_C),
-    .rom_addr(enemyC_ship_sprite_addr),
-    .rom_bits(enemyC_ship_sprite_bits),
-    .gfx(enemy_C_gfx),
-    .inloop(enemy_C_inloop)
-);
-
-enemy_ship_controller enemy_ships(
-    .clk(clk),
-    .reset(reset),
-    .b1_press(b1_press),
-    .b2_press(b2_press),
-    .player_x(draw_pos_x),
-    .enemy_A_x(enemyA_draw_pos_x),
-    .enemy_A_y(enemyA_draw_pos_y),
-    .enemy_B_x(enemyB_draw_pos_x),
-    .enemy_B_y(enemyB_draw_pos_y),
-    .enemy_C_x(enemyC_draw_pos_x),
-    .enemy_C_y(enemyC_draw_pos_y),
-
-);
 endmodule
